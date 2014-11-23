@@ -1,0 +1,94 @@
+<!doctype html>
+<html>
+	<!-- Simple JavaScript project to capture fuel fill up info, and save to a PouchDB database by vmcampos.com -->
+	<head>
+		<meta charset="utf-8">
+		<!-- The JavaScript database that syncs. Found at http://pouchdb.com. Related to CouchDB. -->
+		<script src="pouchdb-3.1.0.min.js"></script>
+		<script>
+			// Create PouchDB database
+			var db = new PouchDB("gasDB00", function(pdberr, pdbgood) {
+													if(!pdberr) {
+														console.log("Successfully created PouchDB");
+														db.info(function(infoerr, infoinf) { 
+															if(!infoerr) {
+																console.log(infoinf);
+															} else {
+																console.log(infoerr);
+															};
+														});
+													} else {
+														console.log("Error creating PouchDB");
+														console.log(pdberr);
+													};
+			});
+			
+			function saveFillUp() { 
+				// var theDate = document.getElementById("currDate").value; // Decided to auto-populate this variable with Date()
+				var theOdo = document.getElementById("currOdo").value;
+				var theGal = document.getElementById("currGal").value;
+				var theCost = document.getElementById("currCost").value;
+				
+				// Create a new PouchDB Document with all the user-generated data, plus Date()
+				var aFillup = {
+					_id: new Date().toJSON(),
+					odo: theOdo,
+					gal: theGal,
+					cost: theCost
+				};
+				
+				// Put the Document into the PouchDB 
+				db.put(aFillup, function (fillerror, fillresult) {
+					if(!fillerror) {
+						console.log(fillresult);
+						showFillUps();										// Display input data on-screen, in a table.
+						alert(theOdo + "\n" + theGal + "\n" + theCost);  // Instead of above just display in Debug Console
+					} else { 
+						console.log(fillerror);
+					}
+				});
+				return false;
+			};
+
+			// Function to get all the Documents added to the PouchDB database
+			function showFillUps() {
+				db.allDocs(
+					{include_docs: true, ascending: true},
+					function (showerr, doc) {
+						if(!showerr) {
+							console.log(doc);
+							showTableOfFillUps(doc.rows);
+						} else {
+							console.log(showerr);
+						};
+					}
+			);};
+			
+			// Function to build the Table and show all the data in the PouchDB database
+			function showTableOfFillUps(data) {
+				var div = document.getElementById("fillupTable");
+				var str = "<table border='1' style='width: 100%; margin-top: 25px; table-layout: fixed;'><tr><th>Date</th><th>Odo</th><th>Gallons</th><th>Cost</th></tr>";
+						for(var i = 0; i < data.length; i++) {
+							str += "<tr><td style='text-wrap: normal; word-wrap: break-word;'>" + data[i].doc._id +
+							"</td><td style='text-wrap: normal; word-wrap: break-word;'>" + data[i].doc.odo +
+							"</td><td style='text-wrap: normal; word-wrap: break-word;'>" + data[i].doc.gal + 
+							"</td><td style='text-wrap: normal; word-wrap: break-word;'>" + data[i].doc.cost + 
+							"</td></tr>";
+						};
+						str += "</table>";
+						div.innerHTML = str;
+			};			
+		</script>
+	</head>
+	<body>
+		<!-- A form to collect fill up data -->
+		<form method="post" id="theForm">
+			<!-- <label for="inputDate">Date</label><input type="date" name="inputDate" id="currDate"> --> <!-- Decide to auto-populate this field with Date() -->
+			<label for="inputOdo">Current Odometer</label><input type="number" name="inputOdo" id="currOdo">
+			<label for="inputGal">Current Gallons</label><input type="number" step="0.01" name="inputGal" id="currGal">
+			<label for="inputCost">Fillup Cost</label><input type="number" step="0.01" name="inputCost" id="currCost">
+			<input type="submit" value="Go" id="btnGo" onclick="saveFillUp();">
+			<div id="fillupTable"></div> <!-- To display results -->
+		</form>
+	</body>
+</html>
