@@ -1,9 +1,8 @@
 vmcGas
 ======
 
-Simple JavaScript project to capture fuel fill up info, and save to a PouchDB database
+Simple JavaScript project to capture fuel fill up info, and save to a PouchDB database, then retrieve averages and the like.
 
-At the moment (2014-11-23 12:00), the basic form is created. PouchDB is initialized. No erorrs. 
-HOWEVER. 
-Nothing happens after clicking Go button. Nothing useful appears on console.
-WTF
+As of 2014-11-26, user inputs work. Retrieving the last MPG works. 
+
+Current problem: I can retrieve every last Odometer added to the database, and every total gallons, but having trouble ALSO retrieving every second-to-last Odometer, without going past the .length of the database. 
