@@ -82,9 +82,9 @@
 				var str = "<table border='1' style='width: 100%; margin-top: 25px; table-layout: fixed;'><tr><th>Date</th><th>Odo</th><th>Gallons</th><th>Cost</th></tr>";
 				for(var i = 0; i < data.length; i++) {
 					str += "<tr><td style='text-wrap: normal; word-wrap: break-word;'>" + data[i].doc._id +
-					"</td><td style='text-wrap: normal; word-wrap: break-word;'>" + data[i].doc.odo +
+					"</td><td style='text-wrap: normal; word-wrap: break-word;'>" + addCommas(data[i].doc.odo) +
 					"</td><td style='text-wrap: normal; word-wrap: break-word;'>" + data[i].doc.gal + 
-					"</td><td style='text-wrap: normal; word-wrap: break-word;'>" + data[i].doc.cost + 
+					"</td><td style='text-wrap: normal; word-wrap: break-word;'>$" + data[i].doc.cost + 
 					"</td></tr>";
 				};
 				str += "</table> <br>";
@@ -102,7 +102,7 @@
 						var mpg = Math.round(100 * ((lastOdo - secondLastOdo) / lastGal)) / 100;
 						if(!err) {
 							console.log("Last Odo: " + lastOdo + "\nSecond-Last Odo: " + secondLastOdo + "\nLast Gallons: " + lastGal + "\nMPG: " + mpg);
-							document.getElementById("lastStats").innerHTML = "<p>Last Odo: " + lastOdo + "<br>Second-Last Odo: " + secondLastOdo + "<br>Last Gallons: " + lastGal + "</p>";
+							document.getElementById("lastStats").innerHTML = "<p>Last Odo: " + addCommas(lastOdo) + "<br>Second-Last Odo: " + addCommas(secondLastOdo) + "<br>Last Gallons: " + lastGal + "</p>";
 							document.getElementById("lastStats").innerHTML += "Last MPG: " + mpg;
 						} else {
 							console.log(err);
@@ -134,22 +134,47 @@
 							document.getElementById("avgStats").innerHTML += "Total Cost: $" + totalCost + "<br>Average Cost: $" + avgCost;
 							// End of Total Gallons, Average Gallons, Total Cost, and Average Cost
 							
-							// This section is not quite working. Last Odometer reading and Gallons are retrieved correctly. But NOT Second-Last Odomoter reading
+							// This is for calculating average Miles Per Gallon from all the data input
 							var lastOdo = 0;
 							var lastGal = 0;
 							var secondLastOdo = 0;
+							var totalMPG = 0;
+							var avgMPG = 0;
 							for(var k = doc.rows.length; k > 0; k--) {
 								lastOdo = Number(doc.rows[k - 1].doc.odo);
 								lastGal = Number(doc.rows[k - 1].doc.gal);
-								secondLastOdo = Number(doc.rows[k - 2].doc.odo); // Trying to fix this: Goes past the bounds of the Database (like an Array)
+								if (k > 1) { // OH SNAP. Seems to solve going past the array. But last MPG is zero. Maybe ignore it?
+									secondLastOdo = Number(doc.rows[k - 2].doc.odo); 
+								};
 								var mpg = Math.round(100 * ((lastOdo - secondLastOdo) / lastGal)) / 100;
-								console.log("Last: " + lastOdo + " || secondLast: " + secondLastOdo + " || lastGal: " + lastGal + " || MPG: " + mpg);
-							} // Still not working. New tactic: maybe a dedicated function for getting lastOdo & secondLastOdo? 
+								totalMPG += mpg;
+								if (mpg > 0) {
+									console.log("Last: " + lastOdo + " || secondLast: " + secondLastOdo + " || lastGal: " + lastGal + " || MPG: " + mpg);
+								};
+							} 
+							avgMPG = (totalMPG / (doc.rows.length - 1));
+							console.log("Total MPG: " + totalMPG);
+							console.log("Avg MPG: " + avgMPG);
+							document.getElementById("avgStats").innerHTML += "<p><strong>Average Miles Per Gallon: " + avgMPG + "</strong></p>";
+							// End of calculating average Miles Per Gallon
 						} else {
 							console.log("Error getting the Documents from the database: " + err);
 						};
 					}
 				);
+			};
+			
+			// Function to add commas and periods to numbers. Found at http://www.mredkj.com/javascript/nfbasic.html
+			function addCommas(nStr) {
+				nStr += '';
+				x = nStr.split('.');
+				x1 = x[0];
+				x2 = x.length > 1 ? '.' + x[1] : '';
+				var rgx = /(\d+)(\d{3})/;
+				while (rgx.test(x1)) {
+					x1 = x1.replace(rgx, '$1' + ',' + '$2');
+				}
+				return x1 + x2;
 			};
 		</script>
 	</head>
@@ -160,7 +185,7 @@
 		<label for="inputCost">Fillup Cost</label><input type="number" step="0.01" name="inputCost" id="currCost">
 		<input type="button" value="Go" id="btnGo" onclick="saveFillUp();">
 		<input type="button" value="Show FillUPs" onclick="showFillUps();">
-		<input type="button" value="Get Last MPG" onclick="getLastMPG();">
+		<!-- <input type="button" value="Get Last MPG" onclick="getLastMPG();"> (Just for checking if things are working okay.)-->
 		<input type="button" value="Get Avg MPG" onclick="getAverages();">
 		
 		<!-- Divs to display various results -->
