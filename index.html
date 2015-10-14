@@ -77,10 +77,11 @@
 				var theGal = Math.round(100 * (document.getElementById("currGal").value)) / 100;
 				var theCost = document.getElementById("currCost").value;
 				var theNote = document.getElementById("currNote").value;
-				var theDate = new Date();					// JS Date Object
-				var theJDate = theDate.toJSON(); 		// JSON Date
-				var theSDate = theDate.toString();		// String Date
-				var theIDate = theDate.toISOString();	// ISO String Date
+				// var theDate = new Date();					// JS Date Object
+				// var theJDate = theDate.toJSON(); 		// JSON Date
+				// var theSDate = theDate.toString();		// String Date
+				// var theIDate = theDate.toISOString();	// ISO String Date
+				var theIDate = new Date().toISOString();
 				var theprettyDate;								// Human readable-ish Date
 				var prettyDate = theDate.toDateString();
 				var prettyHour = theDate.getHours() + ":" + ("0" + theDate.getMinutes()).slice(-2);
@@ -91,7 +92,6 @@
 					console.log("BAD DATA");
 					document.getElementById("avgStats").innerHTML = "<p>Please enter all fields!</p>" ;
 				} else {
-					console.log("Good data!");
 					var aFillup = {
 						_id: theIDate,
 						date: theprettyDate,
@@ -118,7 +118,7 @@
 			}; // END Function to save a FillUp
 			
 			// Function to edit existing FillUp --	PROBLEMS ---------
-			function editFillUp(d, o, g, c, n, lat, lon) {
+			function editFillUp(d, pd, o, g, c, n, lat, lon) {
 				$("#divEdit").show();
 				
 				document.getElementById("editOdo").value  = o;
@@ -126,26 +126,30 @@
 				document.getElementById("editCost").value = c;
 				document.getElementById("editNote").value = n;
 				
-				var newOdo 	= document.getElementById("editOdo").value;
-				var newGal	= document.getElementById("editGal").value;
-				var newCost	= document.getElementById("editCost").value;
-				var newNote	= document.getElementById("editNote").value;
-				var newLat = parseFloat(lat), newLon = parseFloat(lon);
-								
 				$("#btnEditFillUp").on("click", function() {
+					var newOdo 	= document.getElementById("editOdo").value;
+					var newGal	= document.getElementById("editGal").value;
+					var newCost	= document.getElementById("editCost").value;
+					var newNote	= document.getElementById("editNote").value;
+					var newLat = parseFloat(lat), newLon = parseFloat(lon);
+				
 					db.get(d, function callback(error, result) {
+					console.log(d);
 						if(error) {
 							document.getElementById("editOdo").value = "";
 							document.getElementById("editGal").value = "";
 							document.getElementById("editCost").value = "";
 							document.getElementById("editNote").value = "";
-							alert("The Fill Up on " + o + " does not exist. Try again!");
+							alert("The Fill Up on " + d + " does not exist. Try again!");
 							console.log(error);
 							} else {
 							// SOMETHING WRONGG HERE ---------
+							console.log(result);
+
 							db.put({
-								_id: result._id,
+								_id: d,
 								_rev: result._rev,
+								date: pd,
 								odo: newOdo,
 								gal: newGal,
 								cost: newCost,
@@ -159,7 +163,7 @@
 										document.getElementById("editCost").value = "";
 										document.getElementById("editNote").value = "";
 									} else { 
-										console.log("Good: " + result)
+										console.log("Good: " + result.ok)
 										document.getElementById("editOdo").value = "";
 										document.getElementById("editGal").value = "";
 										document.getElementById("editCost").value = "";
@@ -197,7 +201,7 @@
 				var div = document.getElementById("fillupTable");
 				var str = "<table border='1' style='width: 100%; margin-top: 25px; table-layout: fixed;' id='tableFillups'><tr><th>Date</th><th>Odo</th><th>Gallons</th><th>Cost</th><th>Note</th><th>Coords</th></tr>";
 				for(var i = 0; i < data.length; i++) {
-					str += "<tr><td style='text-wrap: normal; word-wrap: break-word;' class='tableDate' data-date='" + data[i].doc._id + "'>" + data[i].doc.date +
+					str += "<tr><td style='text-wrap: normal; word-wrap: break-word;' class='tableDate' data-date='" + data[i].doc._id + "' data-pdate='" + data[i].doc.date + "'>" + data[i].doc.date +
 					"</td><td style='text-wrap: normal; word-wrap: break-word;' class='tableOdo' data-odo='" + data[i].doc.odo + "'>" + addCommas(data[i].doc.odo) +
 					"</td><td style='text-wrap: normal; word-wrap: break-word;' class='tableGal' data-gal='" + data[i].doc.gal + "'>" + data[i].doc.gal + 
 					"</td><td style='text-wrap: normal; word-wrap: break-word;' class='tableCost' data-cost='" + data[i].doc.cost + "'>$" + data[i].doc.cost + 
@@ -253,7 +257,7 @@
 								totalMPG += mpg;
 								if (mpg > 0) {
 									// ...what was this for again?
-									console.log("Last: " + lastOdo + " || secondLast: " + secondLastOdo + " || lastGal: " + lastGal + " || MPG: " + mpg);
+									// console.log("Last: " + lastOdo + " || secondLast: " + secondLastOdo + " || lastGal: " + lastGal + " || MPG: " + mpg);
 								};
 							} 
 							
@@ -298,6 +302,7 @@
 			};
 			
 			// Function to deal with Location Failure
+			
 			function posError(error) {
 				switch(error.code) {
 					case error.PERMISSION_DENIED:
@@ -322,13 +327,14 @@
 			
 			$("#fillupTable").on("click", "tr", function() {  
 				var $editDate = $(this).find(".tableDate").attr("data-date");
+				var $editPDate = $(this).find(".tableDate").attr("data-pdate");
 				var $editOdo = $(this).find(".tableOdo").attr("data-odo");
 				var $editGal = $(this).find(".tableGal").attr("data-gal");
 				var $editCost = $(this).find(".tableCost").attr("data-cost");
 				var $editNote = $(this).find(".tableNote").attr("data-note");
 				var 	$editLat = $(this).find(".tablePos").attr("data-lat"),
 						$editLon = $(this).find(".tablePos").attr("data-lon");
-				editFillUp($editDate, $editOdo, $editGal, $editCost, $editNote, $editLat, $editLon);
+				editFillUp($editDate, $editPDate, $editOdo, $editGal, $editCost, $editNote, $editLat, $editLon);
 			});
 				
 			getLocation(); 		// To get a base location on page load
