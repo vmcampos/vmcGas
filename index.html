@@ -77,12 +77,9 @@
 				var theGal = Math.round(100 * (document.getElementById("currGal").value)) / 100;
 				var theCost = document.getElementById("currCost").value;
 				var theNote = document.getElementById("currNote").value;
-				// var theDate = new Date();					// JS Date Object
-				// var theJDate = theDate.toJSON(); 		// JSON Date
-				// var theSDate = theDate.toString();		// String Date
-				// var theIDate = theDate.toISOString();	// ISO String Date
-				var theIDate = new Date().toISOString();
-				var theprettyDate;								// Human readable-ish Date
+				var theDate = new Date();				// JS Date Object
+				var theIDate = theDate.toISOString();	// ISO String Date
+				var theprettyDate;						// Human readable-ish Date
 				var prettyDate = theDate.toDateString();
 				var prettyHour = theDate.getHours() + ":" + ("0" + theDate.getMinutes()).slice(-2);
 				theprettyDate = prettyDate + " " + prettyHour;
