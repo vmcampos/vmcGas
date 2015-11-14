@@ -8,7 +8,7 @@
 	</head>
 	<body>
 		<!-- Inputs (Number types) to collect fill up data -->
-		<label for="inputOdo">Current Odometer </label><input type="number" name="inputOdo" placeholder="123,456" id="currOdo">
+		<label for="inputOdo">Current Odometer </label><input type="number" step="1" name="inputOdo" placeholder="123,456" id="currOdo">
 		<label for="inputGal">Current Gallons </label><input type="number" step="0.001" name="inputGal" placeholder="14.187" id="currGal">
 		<label for="inputCost">Fillup Cost </label><input type="number" step="0.01" name="inputCost" placeholder="48.25" id="currCost">
 		<label for="inputNote">Notes </label><input type="text" name="inputNote" placeholder="Arco station" id="currNote">
@@ -20,15 +20,16 @@
 		<div id="fillupTable"></div>
 		<div id="lastStats"></div>
 		<div id="avgStats"></div>
+		<div id="myMap"></div>
 
 		<!-- To Edit results -->
 		<div id="divEdit">
 			<hr>
 			<h1>Edit</h1>
-			<label for="editOdo">Old Odometer </label><input type="number" name="editOdo" placeholder="123,456" id="editOdo">
+			<label for="editOdo">Old Odometer </label><input type="number" step="1" name="editOdo" placeholder="123,456" id="editOdo">
 			<label for="editGal">Old Gallons </label><input type="number" step="0.001" name="edittGal" placeholder="14.187" id="editGal">
 			<label for="editCost">Old Cost </label><input type="number" step="0.01" name="editCost" placeholder="48.25" id="editCost">
-			<label for="edittNote">Old Notes </label><input type="text" name="editNote" placeholder="Arco station" id="editNote">
+			<label for="editNote">Old Notes </label><input type="text" name="editNote" placeholder="Arco station" id="editNote">
 			<input type="button" value="Edit" id="btnEditFillUp">
 		</div>
 
@@ -44,6 +45,9 @@
 			$("#divEdit").hide();
 			
 			var str, nStr, myLat, myLon;
+			var $tmpOdo, $tmpGal, $tmpCost, $tmpNote;
+			var $editDate, $editPDate, $editOdo, $editGal, $editCost, $editNote, $editLat, $editLon;
+			var myMap = document.getElementById("myMap");
 			
 			// Create PouchDB database
 			var db = new PouchDB("gasDB00",
@@ -73,15 +77,12 @@
 			// Function to save a FillUp, gathered from user input
 			function saveFillUp() {
 				getLocation(); // To check the Location again
-				var theOdo = document.getElementById("currOdo").value;
+				var theOdo = Number(document.getElementById("currOdo").value);
 				var theGal = Math.round(100 * (document.getElementById("currGal").value)) / 100;
-				var theCost = document.getElementById("currCost").value;
+				var theCost = Number(document.getElementById("currCost").value);
 				var theNote = document.getElementById("currNote").value;
-				// var theDate = new Date();					// JS Date Object
-				// var theJDate = theDate.toJSON(); 		// JSON Date
-				// var theSDate = theDate.toString();		// String Date
-				// var theIDate = theDate.toISOString();	// ISO String Date
-				var theIDate = new Date().toISOString();
+				var theDate = new Date();					// JS Date Object
+				var theIDate = theDate.toISOString();	// ISO String Date
 				var theprettyDate;								// Human readable-ish Date
 				var prettyDate = theDate.toDateString();
 				var prettyHour = theDate.getHours() + ":" + ("0" + theDate.getMinutes()).slice(-2);
@@ -93,14 +94,14 @@
 					document.getElementById("avgStats").innerHTML = "<p>Please enter all fields!</p>" ;
 				} else {
 					var aFillup = {
-						_id: theIDate,
-						date: theprettyDate,
-						odo: theOdo,
-						gal: theGal,
-						cost: theCost,
-						note: theNote,
-						posLat: myLat,
-						posLon: myLon
+						"_id" : theIDate,
+						"date" : theprettyDate,
+						"odo" : theOdo,
+						"gal" : theGal,
+						"cost" : theCost,
+						"note" : theNote,
+						"posLat" : myLat,
+						"posLon" : myLon
 					};
 					
 					// Put the Document into the PouchDB 
@@ -117,69 +118,82 @@
 				};
 			}; // END Function to save a FillUp
 			
-			// Function to edit existing FillUp --	PROBLEMS ---------
-			function editFillUp(d, pd, o, g, c, n, lat, lon) {
-				$("#divEdit").show();
-				
-				document.getElementById("editOdo").value  = o;
-				document.getElementById("editGal").value   = g;
-				document.getElementById("editCost").value = c;
-				document.getElementById("editNote").value = n;
-				
-				$("#btnEditFillUp").on("click", function() {
-					var newOdo 	= document.getElementById("editOdo").value;
-					var newGal	= document.getElementById("editGal").value;
-					var newCost	= document.getElementById("editCost").value;
+			// Function to edit existing FillUp
+				function editFillUp() {
+					var newOdo 	= Number(document.getElementById("editOdo").value);
+					var newGal	= Number(document.getElementById("editGal").value);
+					var newCost	= Number(document.getElementById("editCost").value);
 					var newNote	= document.getElementById("editNote").value;
-					var newLat = parseFloat(lat), newLon = parseFloat(lon);
+					// var newLat = parseFloat(lat), newLon = parseFloat(lon);  				// Alternate method...
+					var newLat = Number($editLat);
+					var newLon = Number($editLon);
 				
-					db.get(d, function callback(error, result) {
-					console.log(d);
+					db.get($editDate, function callback(error, result) {
 						if(error) {
+							console.log(error);
 							document.getElementById("editOdo").value = "";
 							document.getElementById("editGal").value = "";
 							document.getElementById("editCost").value = "";
 							document.getElementById("editNote").value = "";
-							alert("The Fill Up on " + d + " does not exist. Try again!");
-							console.log(error);
+							alert("The Fill Up on " + $editDate + " does not exist. Try again!");
 							} else {
-							// SOMETHING WRONGG HERE ---------
-							console.log(result);
-
-							db.put({
-								_id: d,
-								_rev: result._rev,
-								date: pd,
-								odo: newOdo,
-								gal: newGal,
-								cost: newCost,
-								note: newNote,
-								posLat: newLat,
-								posLon: newLon
-								}, function callback(error, result){
-									if(error){ console.log("BAD:" + error); 
-										document.getElementById("editOdo").value = "";
-										document.getElementById("editGal").value = "";
-										document.getElementById("editCost").value = "";
-										document.getElementById("editNote").value = "";
-									} else { 
-										console.log("Good: " + result.ok)
-										document.getElementById("editOdo").value = "";
-										document.getElementById("editGal").value = "";
-										document.getElementById("editCost").value = "";
-										document.getElementById("editNote").value = "";
-									}
-							}); 
-							showFillUps();
-							getAverages();			
+								db.put({
+									"_id" : $editDate,
+									"date" : $editPDate,
+									"odo" : newOdo,
+									"gal" : newGal,
+									"cost" : newCost,
+									"note" : newNote,
+									"posLat" : newLat,
+									"posLon" : newLon,
+									"_rev" : result._rev
+									}, function callback(error, result){
+										if(error){ 
+											console.log("BAD:" + error); 
+											document.getElementById("editOdo").value = "";
+											document.getElementById("editGal").value = "";
+											document.getElementById("editCost").value = "";
+											document.getElementById("editNote").value = "";
+										} else { 
+											console.log("Good: " + result.ok);
+											console.log(result);
+											document.getElementById("editOdo").value = "";
+											document.getElementById("editGal").value = "";
+											document.getElementById("editCost").value = "";
+											document.getElementById("editNote").value = "";
+											showFillUps();
+											getAverages();
+										}
+								});
 							}
 						}
 					);
-				});
+				} // END Function to edit existing FillUp
+			
+			// Function to auto-populate Edit input boxes
+			function editFillUpPopulate(thisObj) {
+				$editDate = thisObj.find(".tableDate").attr("data-date");
+				$editPDate = thisObj.find(".tableDate").attr("data-pdate");
+				// var $editOdo = thisObj.find("td:eq(1)").text();										// Alternate method...
+				$editOdo = thisObj.find(".tableOdo").attr("data-odo");
+				$editGal = thisObj.find(".tableGal").attr("data-gal");
+				$editCost = thisObj.find(".tableCost").attr("data-cost");
+				$editNote = thisObj.find(".tableNote").attr("data-note");
+				$editLat = thisObj.find(".tablePos").attr("data-lat");
+				$editLon = thisObj.find(".tablePos").attr("data-lon");
 				
+				$tmpOdo = $editOdo;
+				$tmpGal = $editGal;
+				$tmpCost = $editCost;
+				$tmpNote = $editNote;
 				
+				document.getElementById("editOdo").value  = $tmpOdo;
+				document.getElementById("editGal").value   = $tmpGal;
+				document.getElementById("editCost").value = $tmpCost;
+				document.getElementById("editNote").value = $tmpNote;
 				
-			}; // END Function to edit existing FillUp
+				$("#divEdit").show();
+			} // END Function to auto-populate Edit input boxes
 
 			// Function to get all the Documents that were added to the PouchDB database
 			function showFillUps() {
@@ -264,9 +278,17 @@
 							avgMPG = ((totalMPG / (doc.rows.length - 1))).toFixed(2);
 							
 							if (avgMPG == Infinity) {
+								// Infinity? 
 								document.getElementById("avgStats").innerHTML += "<p><strong>Average Miles Per Gallon will appear after more than two Fillups!</strong></p>";
+							} else if(avgMPG == -Infinity) {
+								// Negative inifity?? 
+								document.getElementById("avgStats").innerHTML += "<p><strong>Please check your values!</strong></p>";
 							} else if(avgMPG == 0) {
 								// Don't show Zero Average MPG
+								document.getElementById("avgStats").innerHTML += "<p><strong>Please check your values!</strong></p>";
+							} else if(isNaN(avgMPG)) {
+								// Not a Number?
+								document.getElementById("avgStats").innerHTML += "<p><strong>Please check your values!</strong></p>";
 							} else {
 								document.getElementById("avgStats").innerHTML += "<p><strong>Average Miles Per Gallon: " + avgMPG + "</strong></p>";
 							} // END average Miles Per Gallon
@@ -301,41 +323,43 @@
 				myLon = position.coords.longitude;
 			};
 			
-			// Function to deal with Location Failure
-			
+			// Function to deal with Location Failure (Default to San Diego)
 			function posError(error) {
 				switch(error.code) {
 					case error.PERMISSION_DENIED:
+						myLat = 32.8169573;
+						myLon = -117.13363;
 						myMap.innerHTML = "User denied the request for Geolocation."
 						break;
 					case error.POSITION_UNAVAILABLE:
+						myLat = 32.8169573;
+						myLon = -117.13363;
 						myMap.innerHTML = "Location information is unavailable."
 						break;
 					case error.TIMEOUT:
+						myLat = 32.8169573;
+						myLon = -117.13363;
 						myMap.innerHTML = "The request to get user location timed out."
 						break;
 					case error.UNKNOWN_ERROR:
+						myLat = 32.8169573;
+						myLon = -117.13363;
 						myMap.innerHTML = "An unknown error occurred."
+						break;
+					default:
+						myLat = 32.8169573;
+						myLon = -117.13363;
+						myMap.innerHTML = "An unknown error occurred!!"
 						break;
 				}
 			};
 			
-			
+			// Button event handlers
 			$("#saveFillUp").on("click", function() { saveFillUp();});
 			$("#showFillUps").on("click", function() { showFillUps();});
 			$("#getAverages").on("click", function() { getAverages();});
-			
-			$("#fillupTable").on("click", "tr", function() {  
-				var $editDate = $(this).find(".tableDate").attr("data-date");
-				var $editPDate = $(this).find(".tableDate").attr("data-pdate");
-				var $editOdo = $(this).find(".tableOdo").attr("data-odo");
-				var $editGal = $(this).find(".tableGal").attr("data-gal");
-				var $editCost = $(this).find(".tableCost").attr("data-cost");
-				var $editNote = $(this).find(".tableNote").attr("data-note");
-				var 	$editLat = $(this).find(".tablePos").attr("data-lat"),
-						$editLon = $(this).find(".tablePos").attr("data-lon");
-				editFillUp($editDate, $editPDate, $editOdo, $editGal, $editCost, $editNote, $editLat, $editLon);
-			});
+			$("#divEdit").on("click", "#btnEditFillUp", function() { editFillUp() });
+			$("#fillupTable").on("click", "tr", function() {  editFillUpPopulate($(this)) });
 				
 			getLocation(); 		// To get a base location on page load
 			});
