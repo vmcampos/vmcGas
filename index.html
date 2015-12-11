@@ -31,6 +31,9 @@
 			<label for="editCost">Old Cost </label><input type="number" step="0.01" name="editCost" placeholder="48.25" id="editCost">
 			<label for="editNote">Old Notes </label><input type="text" name="editNote" placeholder="Arco station" id="editNote">
 			<input type="button" value="Edit" id="btnEditFillUp">
+			<hr>
+			<h2>DELETE ALL FILLUPS</h2>
+			<a href="#" id="btnNuke">NUKE IT</a>
 		</div>
 
 		<!-- jQuery. Duh. -->
@@ -48,23 +51,29 @@
 			var $tmpOdo, $tmpGal, $tmpCost, $tmpNote;
 			var $editDate, $editPDate, $editOdo, $editGal, $editCost, $editNote, $editLat, $editLon;
 			var $myMap = $("#myMap");
+			var db;
 			
-			// Create PouchDB database
-			var db = new PouchDB("gasDB00",
-						function(pdberr, pdbgood) {
-							if(!pdberr) {
-								db.info(function(infoerr, infoinf) { 
-									if(!infoerr) {
-										console.log(infoinf);
-									} else {
-										console.log(infoerr);
-									};
-								});
-							} else {
-								console.log(pdberr);
-							};
-						}
-			);
+			// Function to create PouchDB database
+			function initDb() {
+				db = new PouchDB("gasDB00",
+							function(pdberr, pdbgood) {
+								if(!pdberr) {
+									db.info(function(infoerr, infoinf) { 
+										if(!infoerr) {
+											console.log(infoinf);
+										} else {
+											console.log(infoerr);
+										};
+									});
+								} else {
+									console.log(pdberr);
+								};
+							}
+				);
+				return db;
+			} // END // Function to create PouchDB database
+			
+			initDb(); // Create the PouchDB database! 
 			
 			// Function to clear user input fields
 			function clearFields() {
@@ -78,7 +87,7 @@
 			function saveFillUp() {
 				getLocation(); // To check the Location again
 				var $theOdo = Number($("#currOdo").val());
-				var $theGal = Math.round(100 * ($("#currGal").val())) / 100;
+				var $theGal = Math.round(1000 * ($("#currGal").val())) / 1000;
 				var $theCost = Number($("#currCost").val());
 				var $theNote = $("#currNote").val();
 				var theDate = new Date();					// JS Date Object
@@ -135,7 +144,7 @@
 							$("#editGal").val("");
 							$("#editCost").val("");
 							$("#editNote").val("");
-							alert("The Fill Up on " + $editDate + " does not exist. Try again!");
+							alert("The Fill Up on does not exist. Try again!");
 							} else {
 								db.put({
 									"_id" : $editDate,
@@ -193,12 +202,45 @@
 				$("#editCost").val($tmpCost);
 				$("#editNote").val($tmpNote);
 				
-				
 				$("#divEdit").show();
 			} // END Function to auto-populate Edit input boxes
+			
+			// Function to delete a FillUp
+			function deleteFillUp(thisObj) {
+				var $deleteDate = thisObj.find(".tableDate").attr("data-date"),
+					$deletePDate = thisObj.find(".tableDate").attr("data-pdate");
+
+				switch(confirm("About to delete the FillUp on " + $deletePDate + "! \nProceed?")) {
+					case true:
+						db.get($deleteDate, function callback(error, result) { 
+							if(error) {
+								alert("Error deleting " + $deleteDate);
+								console.log(error);
+							} else {
+								db.remove(result, function callback(error, result) { 
+									if(error) {
+										alert("Couldn't delete!!");
+										console.log(error);
+									} else {
+										showFillUps();
+									}
+								});
+							}
+						});
+						break;
+					case false:
+						alert("Cancelled");
+						break;
+					default:
+						alert("Nothing to delete!");
+						break;
+				}
+			} // END Function to delete a FillUp
 
 			// Function to get all the Documents that were added to the PouchDB database
 			function showFillUps() {
+				$("#fillupTable").show();
+				$("#avgStats").show();
 				db.allDocs(
 					{ include_docs: true, descending: true },
 					function (showerr, doc) {
@@ -215,7 +257,7 @@
 			// Function to build the Table and show all the data from the PouchDB database
 			function showTableOfFillUps(data) {
 				var div = document.getElementById("fillupTable");
-				var str = "<table border='1' style='width: 100%; margin-top: 25px; table-layout: fixed;' id='tableFillups'><tr><th>Date</th><th>Odo</th><th>Gallons</th><th>Cost</th><th>Note</th><th>&nbsp;</th><th>Coords</th></tr>";
+				var str = "<table border='1' style='width: 100%; margin-top: 25px; table-layout: fixed;' id='tableFillups'><tr><th>Date</th><th>Odo</th><th>Gallons</th><th>Cost</th><th>Note</th><th>&nbsp;</th><th>&nbsp;</th><th>Coords</th></tr>";
 				for(var i = 0; i < data.length; i++) {
 					str += "<tr><td style='text-wrap: normal; word-wrap: break-word;' class='tableDate' data-date='" + data[i].doc._id + "' data-pdate='" + data[i].doc.date + "'>" + data[i].doc.date +
 					"</td><td style='text-wrap: normal; word-wrap: break-word;' class='tableOdo' data-odo='" + data[i].doc.odo + "'>" + addCommas(data[i].doc.odo) +
@@ -223,6 +265,7 @@
 					"</td><td style='text-wrap: normal; word-wrap: break-word;' class='tableCost' data-cost='" + data[i].doc.cost + "'>$" + data[i].doc.cost + 
 					"</td><td style='text-wrap: normal; word-wrap: break-word;' class='tableNote' data-note='" + data[i].doc.note + "'>" + data[i].doc.note + 
 					"</td><td style='text-wrap: normal; word-wrap: break-word;' class='btnEdit'><a href='#'>Edit</a>" + 
+					"</td><td style='text-wrap: normal; word-wrap: break-word;' class='btnDelete'><a href='#'>Delete</a>" +
 					"</td><td style='text-wrap: normal; word-wrap: break-word;'>" + "<span class='tablePos' data-lat='" + data[i].doc.posLat + "' data-lon='" + data[i].doc.posLon + "'>" + data[i].doc.posLat.toFixed(2) + ", " + data[i].doc.posLon.toFixed(2) + "</span>" +
 					"</td></tr>";
 				};
@@ -254,7 +297,7 @@
 								$("#avgStats").html("<p>Please enter eat least two Fillups</p>" );
 							} else {
 								document.getElementById("avgStats").innerHTML = "<p>Total Gallons: " + Math.round(totalGal) + "<br>Average Gallons: " + avgGal + "</p>";
-								document.getElementById("avgStats").innerHTML += "Total Cost: $" + totalCost + "<br>Average Cost: $" + avgCost + "</p>";
+								document.getElementById("avgStats").innerHTML += "Total Cost: $" + addCommas(roundCents(totalCost)) + "<br>Average Cost: $" + avgCost + "</p>";
 							} // END of Total Gallons, Average Gallons, Total Cost, and Average Cost
 							
 							// To calculate average Miles Per Gallon from all the data input
@@ -280,7 +323,7 @@
 							
 							avgMPG = ((totalMPG / (doc.rows.length - 1))).toFixed(2);
 							
-							if (avgMPG == Infinity) {
+							if(avgMPG == Infinity) {
 								// Infinity? 
 								console.log("Infinity");
 								$("#avgStats").html("<p><strong>Average Miles Per Gallon will appear after more than two Fillups!</strong></p>" );
@@ -306,6 +349,46 @@
 				);
 			}; // END of function to calculate Averages
 			
+			// Function to delete the Database
+			function deleteDb() {
+				switch(confirm("You are about to delete ALL FillUps!\nConfirm?")) {
+					case true:
+						switch(confirm("Are you sure?\nThere is NO undo!")) {
+							case true:
+								var deleteDb = prompt("Please type DELETE below:");
+								if(deleteDb == "DELETE") {
+									db.destroy(function callback(error, result){
+										if(error) {
+											console.log(error);
+										} else {
+											$("#fillupTable").hide();
+											$("#avgStats").hide();
+											$("#divEdit").hide();
+											$("#myMap").hide();
+											initDb();
+										}
+									});
+								} else { 
+									alert("Try again");
+								}
+								break;
+							case false:
+								alert("Thank you!");
+								break;
+							default:
+								alert("No Db to delete!");
+								break;
+						}
+						break;
+					case false:
+						alert("Cancelled");
+						break;
+					default:
+						alert("No Db to delete!");
+						break;
+				}
+			} // END Function to delete the Database
+			
 			// Function to add commas and periods to numbers. Found at http://www.mredkj.com/javascript/nfbasic.html
 			function addCommas(nStr) {
 				nStr += '';
@@ -317,6 +400,15 @@
 					x1 = x1.replace(rgx, '$1' + ',' + '$2');
 				}
 				return x1 + x2;
+			};
+			
+			// Function to round cents. Found at http://snipplr.com/view/4719/round-cents/
+			function roundCents(amount) {
+				var cents = Math.round((amount * 100)),
+					roundStr = "" + cents,
+					roundLen = roundStr.length;
+			 
+				return roundStr.substring(0, roundLen - 2) + "." + roundStr.substring(roundLen - 2, roundLen);
 			};
 			
 			// Function to get user's Location
@@ -331,32 +423,32 @@
 				console.log(myLat + " " + myLon);
 			};
 			
-			// Function to deal with Location Failure (Defaults to San Diego)
+			// Function to deal with Location Failure (Defaults to San Diego Convention Center)
 			function posError(error) {
 				switch(error.code) {
 					case error.PERMISSION_DENIED:
-						myLat = 32.715;
-						myLon = -117.1625;
+						myLat = 32.7063;
+						myLon = -117.1612;
 						$myMap.html("User denied the request for Geolocation.");
 						break;
 					case error.POSITION_UNAVAILABLE:
-						myLat = 32.715;
-						myLon = -117.1625;
+						myLat = 32.7063;
+						myLon = -117.1612;
 						$myMap.html("Location information is unavailable.");
 						break;
 					case error.TIMEOUT:
-						myLat = 32.715;
-						myLon = -117.1625;
+						myLat = 32.7063;
+						myLon = -117.1612;
 						$myMap.html("The request to get user location timed out.");
 						break;
 					case error.UNKNOWN_ERROR:
-						myLat = 32.715;
-						myLon = -117.1625;
+						myLat = 32.7063;
+						myLon = -117.1612;
 						$myMap.html("An unknown error occurred!");
 						break;
 					default:
-						myLat = 32.715;
-						myLon = -117.1625;
+						myLat = 32.7063;
+						myLon = -117.1612;
 						$myMap.html("An unknown error occurred!!");
 						break;
 				}
@@ -364,24 +456,26 @@
 			
 			// Function to prep Map
 			function showMapPrep(thisObj) {
-				$("#divEdit").hide();
 				var $theLat = thisObj.data("lat"), $theLon = thisObj.data("lon");
 				showMap($theLat, $theLon);
 			}
 			
 			// Function to show Map on-screen
 			function showMap($theLat, $theLon) {
-				console.log($theLat + " " + $theLon);
+				alert($theLat + " " + $theLon);
 			};
 			
 			// Button event handlers
 			$("#saveFillUp").on("click", function() { saveFillUp();});
 			$("#showFillUps").on("click", function() { showFillUps();});
 			$("#getAverages").on("click", function() { getAverages();});
+			$("#fillupTable").on("click", ".btnDelete", function() { deleteFillUp($(this).parent()) });
 			$("#fillupTable").on("click", ".btnEdit", function() { editFillUpPrep($(this).parent()) });
-			$("#divEdit").on("click", "#btnEditFillUp", function() { editFillUp() });
 			$("#fillupTable").on("click", ".tablePos", function() { showMapPrep($(this)) });
-				
+			$("#divEdit").on("click", "#btnEditFillUp", function() { editFillUp() });
+			$("#divEdit").on("click", "#btnNuke", function() { deleteDb() });
+			$("#currOdo, #currGal, #currCost").focus(function() { getLocation(); });  // Comment while testing!
+			
 			getLocation(); 		// To get a base location on page load
 			})();
 		</script>
